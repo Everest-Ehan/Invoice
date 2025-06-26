@@ -1,16 +1,13 @@
 import axios from 'axios';
-import vercelTokenStore from './vercelTokenStore.js';
 
-export async function refreshQuickBooksToken() {
-  const tokens = await vercelTokenStore.getTokens();
-  if (!tokens.refreshToken) throw new Error('No refresh token available');
-  
+export async function refreshQuickBooksToken(refreshToken, realmId) {
+  if (!refreshToken) throw new Error('No refresh token available');
   try {
     const tokenRes = await axios.post(
       'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
       new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: tokens.refreshToken,
+        refresh_token: refreshToken,
       }),
       {
         headers: {
@@ -19,20 +16,14 @@ export async function refreshQuickBooksToken() {
         },
       }
     );
-
-    // Save the new tokens with expiry time
     const expiresIn = tokenRes.data.expires_in || 3600;
-    await vercelTokenStore.saveTokens(
-      tokenRes.data.access_token,
-      tokenRes.data.refresh_token,
-      tokens.realmId, // Keep the same realm ID
-      expiresIn
-    );
-
-    console.log('Token refreshed successfully');
-    return tokenRes.data.access_token;
+    return {
+      accessToken: tokenRes.data.access_token,
+      refreshToken: tokenRes.data.refresh_token,
+      realmId,
+      expiresAt: Date.now() + (expiresIn * 1000)
+    };
   } catch (err) {
-    console.error('Failed to refresh QuickBooks token:', err.response?.data || err.message);
     throw new Error('Failed to refresh QuickBooks token');
   }
 } 

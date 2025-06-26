@@ -1,7 +1,5 @@
 import express from 'express';
 import axios from 'axios';
-import vercelTokenStore from '../quickbooks/vercelTokenStore.js';
-import { refreshQuickBooksToken } from '../quickbooks/refreshToken.js';
 
 const router = express.Router();
 
@@ -37,13 +35,6 @@ router.get('/quickbooks/callback', async (req, res) => {
     const expiresIn = tokenRes.data.expires_in || 3600;
     const expiresAt = Date.now() + (expiresIn * 1000);
     
-    await vercelTokenStore.saveTokens(
-      tokenRes.data.access_token,
-      tokenRes.data.refresh_token,
-      realmId,
-      expiresIn
-    );
-
     // Redirect to frontend with tokens in URL params for localStorage
     const tokens = encodeURIComponent(JSON.stringify({
       accessToken: tokenRes.data.access_token,
@@ -62,95 +53,52 @@ router.get('/quickbooks/callback', async (req, res) => {
   }
 });
 
-// Add logout endpoint to clear tokens and re-authenticate
-router.get('/logout', async (req, res) => {
-  await vercelTokenStore.clearTokens();
-  res.json({ message: 'Logged out successfully. You can now re-authenticate.' });
+// Refactor /validate-token to accept tokens from req.body (POST) or req.query (GET)
+router.post('/validate-token', async (req, res) => {
+  const { accessToken, refreshToken, realmId, expiresAt } = req.body;
+  if (!accessToken) {
+    return res.status(401).json({ valid: false, message: 'No access token found', needsAuth: true });
+  }
+  if (!expiresAt || Date.now() >= Number(expiresAt)) {
+    return res.status(401).json({ valid: false, message: 'Access token expired', needsRefresh: true, hasRefreshToken: !!refreshToken });
+  }
+  res.json({ valid: true, message: 'Token is valid', realmId, expiresAt });
 });
 
-// Token validation endpoint
-router.get('/validate-token', async (req, res) => {
-  const tokens = await vercelTokenStore.getTokens();
-  
-  if (!tokens.accessToken) {
-    return res.status(401).json({ 
-      valid: false, 
-      message: 'No access token found',
-      needsAuth: true 
-    });
-  }
-
-  if (!(await vercelTokenStore.isTokenValid())) {
-    return res.status(401).json({ 
-      valid: false, 
-      message: 'Access token expired',
-      needsRefresh: true,
-      hasRefreshToken: !!tokens.refreshToken
-    });
-  }
-
-  res.json({ 
-    valid: true, 
-    message: 'Token is valid',
-    realmId: tokens.realmId,
-    expiresAt: tokens.expiresAt
-  });
-});
-
-// Refresh token endpoint
+// Refactor /refresh-token to accept refreshToken and realmId from req.body
 router.post('/refresh-token', async (req, res) => {
+  const { refreshToken, realmId } = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({ success: false, message: 'No refresh token provided' });
+  }
   try {
-    const newAccessToken = await refreshQuickBooksToken();
-    const tokens = await vercelTokenStore.getTokens();
-    
-    res.json({ 
-      success: true, 
+    // Use the refresh token to get a new access token
+    const tokenRes = await axios.post(
+      'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + Buffer.from(`${process.env.QB_CLIENT_ID}:${process.env.QB_CLIENT_SECRET}`).toString('base64'),
+        },
+      }
+    );
+    const expiresIn = tokenRes.data.expires_in || 3600;
+    const expiresAt = Date.now() + (expiresIn * 1000);
+    res.json({
+      success: true,
       message: 'Token refreshed successfully',
-      accessToken: newAccessToken,
-      expiresAt: tokens.expiresAt
+      accessToken: tokenRes.data.access_token,
+      refreshToken: tokenRes.data.refresh_token,
+      realmId,
+      expiresAt
     });
   } catch (error) {
-    console.error('Token refresh failed:', error);
-    res.status(401).json({ 
-      success: false, 
-      message: 'Token refresh failed',
-      error: error.message 
-    });
+    res.status(401).json({ success: false, message: 'Token refresh failed', error: error.message });
   }
-});
-
-// Sync tokens from frontend
-router.post('/sync-tokens', async (req, res) => {
-  const { accessToken, refreshToken, realmId, expiresAt } = req.body;
-  
-  if (accessToken && realmId) {
-    await vercelTokenStore.setTokens({ accessToken, refreshToken, realmId, expiresAt });
-    res.json({ success: true, message: 'Tokens synced successfully' });
-  } else {
-    res.status(400).json({ success: false, message: 'Missing required tokens' });
-  }
-});
-
-// Debug endpoint to check token status
-router.get('/debug-tokens', async (req, res) => {
-  const tokens = await vercelTokenStore.getTokens();
-  const isValid = await vercelTokenStore.isTokenValid();
-  
-  res.json({
-    tokens_available: !!tokens.accessToken,
-    token_valid: isValid,
-    token_info: {
-      has_access_token: !!tokens.accessToken,
-      has_realm_id: !!tokens.realmId,
-      has_refresh_token: !!tokens.refreshToken,
-      expires_at: tokens.expiresAt ? new Date(tokens.expiresAt).toISOString() : null,
-      is_expired: tokens.expiresAt ? Date.now() > tokens.expiresAt : false,
-      time_until_expiry: tokens.expiresAt ? Math.floor((tokens.expiresAt - Date.now()) / 1000) : null
-    },
-    next_steps: isValid ? 
-      'Tokens are valid and ready to use' : 
-      tokens.accessToken ? 'Token expired, try /refresh-token' : 'No tokens, need to authenticate'
-  });
 });
 
 export default router;

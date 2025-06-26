@@ -1,105 +1,105 @@
 import React from "react";
+import { Calendar, User, DollarSign, Clock } from "lucide-react";
+import "./InvoiceCard.css";
 
-function statusColor(status) {
-  switch ((status || '').toLowerCase()) {
-    case 'paid': return '#22c55e';
-    case 'voided': return '#f87171';
-    case 'open': return '#facc15';
-    default: return '#a1a1aa';
-  }
-}
+export function InvoiceCard({ invoice, onClick }) {
+  const formatDate = (dateString) => {
+    if (!dateString) return "No date";
+    try {
+      // For date-only strings (YYYY-MM-DD), parse manually to avoid timezone issues
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${monthNames[month - 1]} ${day}, ${year}`;
+      } else {
+        // For other date formats, parse as-is
+        const date = new Date(dateString);
+        return date.toLocaleDateString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      }
+    } catch (error) {
+      return "Invalid date";
+    }
+  };
 
-export default function InvoiceCard({ invoice }) {
-  // Extract essential fields with defensive checks
-  const docNumber = invoice.DocNumber || (invoice.Id ? `Invoice #${invoice.Id}` : 'Unknown Invoice');
-  const totalAmt = typeof invoice.TotalAmt === 'number' ? invoice.TotalAmt.toFixed(2) : 'N/A';
-  const balance = typeof invoice.Balance === 'number' ? invoice.Balance.toFixed(2) : '0.00';
-  const txnDate = invoice.TxnDate || 'No date';
-  const dueDate = invoice.DueDate || 'No due date';
-  const customerName = invoice.Customer?.name || invoice.Customer?.value || 'Unknown Customer';
-  const note = invoice.PrivateNote;
-  const invoiceLink = invoice.InvoiceLink;
-  
-  // Determine status
-  let status = 'Open';
-  if (balance === 0 || balance === '0.00') {
-    status = 'Paid';
-  } else if (note && note.toLowerCase().includes('void')) {
-    status = 'Voided';
-  }
+  const getStatusClass = (status) => {
+    switch ((status || '').toLowerCase()) {
+      case 'emailsent':
+        return 'invoice-badge sent';
+      case 'needtoprint':
+        return 'invoice-badge pending';
+      default:
+        return 'invoice-badge';
+    }
+  };
 
-  // Extract line items (excluding tax lines)
-  const lineItems = invoice.Line ? invoice.Line.filter(line => 
-    line.SalesItemLineDetail && !line.SalesItemLineDetail.ItemRef?.name?.toLowerCase().includes('tax')
-  ) : [];
+  const getStatusText = (status) => {
+    switch ((status || '').toLowerCase()) {
+      case 'emailsent':
+        return 'Sent';
+      case 'needtoprint':
+        return 'Pending';
+      default:
+        return status || 'Unknown';
+    }
+  };
+
+  // Safe access to invoice properties with fallbacks
+  const docNumber = invoice?.DocNumber || invoice?.Id || 'Unknown';
+  const customerName = invoice?.CustomerRef?.name || 'Unknown Customer';
+  const totalAmt = typeof invoice?.TotalAmt === 'number' ? invoice.TotalAmt : 0;
+  const balance = typeof invoice?.Balance === 'number' ? invoice.Balance : 0;
+  const txnDate = invoice?.TxnDate || '';
+  const dueDate = invoice?.DueDate || '';
+  const emailStatus = invoice?.EmailStatus || '';
+
+  const isPastDue = dueDate && new Date(dueDate) < new Date() && balance > 0;
 
   return (
-    <div className="invoice-card" tabIndex={0} style={{ outline: 'none' }}>
-      {/* Header with Invoice Number and Status */}
-      <div className="invoice-header-row">
-        <div className="invoice-number">{docNumber}</div>
-        <span 
-          className="invoice-status-tag" 
-          style={{ 
-            background: statusColor(status), 
-            color: '#fff', 
-            borderRadius: 8, 
-            padding: '4px 12px', 
-            fontSize: 12, 
-            fontWeight: '600',
-            marginLeft: 8 
-          }}
-        >
-          {status}
-        </span>
-      </div>
-
-      {/* Customer and Dates */}
-      <div className="invoice-customer">{customerName}</div>
-      <div className="invoice-dates">
-        <span>Date: {txnDate}</span>
-        {dueDate !== 'No due date' && <span>Due: {dueDate}</span>}
-      </div>
-
-      {/* Amount Information */}
-      <div className="invoice-amounts">
-        <div className="invoice-total">Total: ${totalAmt}</div>
-        {status === 'Open' && balance !== totalAmt && (
-          <div className="invoice-balance">Balance: ${balance}</div>
-        )}
-      </div>
-
-      {/* Line Items */}
-      {lineItems.length > 0 && (
-        <div className="invoice-line-items">
-          <div className="line-items-header">Items:</div>
-          {lineItems.slice(0, 3).map((line, idx) => (
-            <div key={idx} className="line-item">
-              <span className="line-description">
-                {line.SalesItemLineDetail?.ItemRef?.name || line.Description || 'Unknown Item'}
-              </span>
-              <span className="line-amount">
-                ${line.Amount ? parseFloat(line.Amount).toFixed(2) : '0.00'}
-              </span>
-            </div>
-          ))}
-          {lineItems.length > 3 && (
-            <div className="line-item-more">+{lineItems.length - 3} more items</div>
+    <div onClick={onClick} className="invoice-card">
+      <div className="invoice-card-main">
+        <div className="invoice-card-header">
+          <span className="text-lg font-semibold text-gray-900">#{docNumber}</span>
+          <span className={getStatusClass(emailStatus)}>
+            {getStatusText(emailStatus)}
+          </span>
+          {isPastDue && (
+            <span className="invoice-badge overdue">Overdue</span>
           )}
         </div>
-      )}
-
-      {/* Note if present */}
-      {note && <div className="invoice-note">Note: {note}</div>}
-
-      {/* Invoice Link */}
-      {invoiceLink && (
-        <div className="invoice-link">
-          <a href={invoiceLink} target="_blank" rel="noopener noreferrer" className="view-invoice-btn">
-            View Invoice
-          </a>
+        <div className="invoice-card-grid">
+          <div className="invoice-card-info">
+            <User size={16} className="icon" />
+            <span className="truncate">{customerName}</span>
+          </div>
+          <div className="invoice-card-info">
+            <Calendar size={16} className="icon" />
+            <span>Issued {formatDate(txnDate)}</span>
+          </div>
+          <div className="invoice-card-info">
+            <Clock size={16} className="icon" />
+            <span className={isPastDue ? 'due' : ''}>
+              Due {formatDate(dueDate)}
+            </span>
+          </div>
+          <div className="invoice-card-amount">
+            <div className="invoice-card-info">
+              <DollarSign size={16} className="icon" />
+              <span className="total">${totalAmt.toFixed(2)}</span>
+            </div>
+            {balance > 0 && (
+              <span className="due">${balance.toFixed(2)} due</span>
+            )}
+          </div>
         </div>
-      )}
+      </div>
+      <div className="invoice-card-arrow">
+        <span>📄</span>
+      </div>
     </div>
   );
 }

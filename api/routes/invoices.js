@@ -1,26 +1,24 @@
 import express from 'express';
 import QuickBooks from 'node-quickbooks';
-import tokenStore from '../quickbooks/tokenStore.js';
 
 const router = express.Router();
 
 // Helper function to get QuickBooks client or throw error
-function getQboClientOrError() {
-  if (!tokenStore.accessToken || !tokenStore.realmId) {
+function getQboClientOrError(tokens) {
+  if (!tokens.accessToken || !tokens.realmId) {
     throw new Error('No valid tokens available. Please complete OAuth flow first.');
   }
-  
   const qbo = new QuickBooks(
-    process.env.QB_CLIENT_ID,           // clientId
-    process.env.QB_CLIENT_SECRET,       // clientSecret  
-    tokenStore.accessToken,             // accessToken
-    tokenStore.refreshToken,            // refreshToken
-    tokenStore.realmId,                 // realmId
-    process.env.NODE_ENV !== 'production', // useSandbox
-    process.env.NODE_ENV !== 'production', // debug
-    null,                               // minorversion
-    '2.0',                              // oauthversion
-    process.env.QB_CLIENT_SECRET        // tokenSecret (using client secret)
+    process.env.QB_CLIENT_ID,
+    process.env.QB_CLIENT_SECRET,
+    tokens.accessToken,
+    tokens.refreshToken,
+    tokens.realmId,
+    process.env.NODE_ENV !== 'production',
+    process.env.NODE_ENV !== 'production',
+    null,
+    '2.0',
+    process.env.QB_CLIENT_SECRET
   );
   return qbo;
 }
@@ -28,7 +26,8 @@ function getQboClientOrError() {
 // Get all invoices as JSON
 router.get('/all', (req, res) => {
   try {
-    const qbo = getQboClientOrError();
+    const { accessToken, realmId } = req.body || req.query;
+    const qbo = getQboClientOrError({ accessToken, realmId });
     const { limit = 100, offset = 0, criteria } = req.query;
     
     // Build query string
@@ -106,7 +105,8 @@ router.get('/all', (req, res) => {
 // Get a specific invoice by ID
 router.get('/:id', (req, res) => {
   try {
-    const qbo = getQboClientOrError();
+    const { accessToken, realmId } = req.body || req.query;
+    const qbo = getQboClientOrError({ accessToken, realmId });
     const { id } = req.params;
 
     qbo.getInvoice(id, (err, invoice) => {
@@ -170,7 +170,8 @@ router.get('/:id', (req, res) => {
 // Get invoices with simple filtering
 router.get('/search/:criteria', (req, res) => {
   try {
-    const qbo = getQboClientOrError();
+    const { accessToken, realmId } = req.body || req.query;
+    const qbo = getQboClientOrError({ accessToken, realmId });
     const { criteria } = req.params;
     const { limit = 50 } = req.query;
 

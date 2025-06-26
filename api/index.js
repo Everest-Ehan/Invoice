@@ -6,7 +6,6 @@ import authRoutes from './routes/auth.js';
 import statusRoutes from './routes/status.js';
 import aiRoutes from './routes/ai.js';
 // import invoiceRoutes from './routes/invoices.js';
-import serverless from 'serverless-http';
 
 dotenv.config();
 

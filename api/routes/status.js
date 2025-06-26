@@ -1,5 +1,4 @@
 import express from 'express';
-import tokenStore from '../quickbooks/tokenStore.js';
 import { callQuickBooksApi } from '../quickbooks/api.js';
 
 const router = express.Router();
@@ -7,39 +6,39 @@ const router = express.Router();
 router.get('/', (req, res) => {
   res.json({
     message: 'Hello from server!',
-    quickbooksConnected: !!tokenStore.accessToken,
+    quickbooksConnected: !!req.query.accessToken,
     quickbooksClientId: process.env.QB_CLIENT_ID,
     quickbooksClientSecret: process.env.QB_CLIENT_SECRET,
     quickbooksRedirectUri: process.env.QB_REDIRECT_URI,
-    quickbooksRealmId: tokenStore.realmId,
-    quickbooksAccessToken: tokenStore.accessToken,
-    quickbooksRefreshToken: tokenStore.refreshToken,
-    quickbooksExpiresAt: tokenStore.expiresAt,
+    quickbooksRealmId: req.query.realmId,
+    quickbooksAccessToken: req.query.accessToken,
+    quickbooksRefreshToken: req.query.refreshToken,
+    quickbooksExpiresAt: req.query.expiresAt,
   });
 });
 
 router.get('/status', (req, res) => {
-  res.json({ connected: !!tokenStore.accessToken });
+  res.json({ connected: !!req.query.accessToken });
 });
 
 router.get('/tokens', (req, res) => {
-  if (!tokenStore.accessToken) return res.status(401).json({ error: 'Not connected' });
+  if (!req.query.accessToken) return res.status(401).json({ error: 'Not connected' });
   res.json({
-    accessToken: tokenStore.accessToken,
-    realmId: tokenStore.realmId
+    accessToken: req.query.accessToken,
+    realmId: req.query.realmId
   });
 });
 
 // Test endpoint to verify QuickBooks API connection
 router.get('/test-quickbooks', async (req, res) => {
-  if (!tokenStore.accessToken) {
+  if (!req.query.accessToken) {
     return res.status(401).json({ error: 'Not connected to QuickBooks' });
   }
 
   try {
     // Test 1: Try to list invoices (most basic operation)
     const query = 'SELECT * FROM Invoice MAXRESULTS 5';
-    const url = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenStore.realmId}/query?query=${encodeURIComponent(query)}`;
+    const url = `https://sandbox-quickbooks.api.intuit.com/v3/company/${req.query.realmId}/query?query=${encodeURIComponent(query)}`;
     
     const config = {
       method: 'get',
@@ -57,7 +56,7 @@ router.get('/test-quickbooks', async (req, res) => {
       message: 'QuickBooks API connection working!',
       testResults: {
         connection: '✅ Connected',
-        realmId: tokenStore.realmId,
+        realmId: req.query.realmId,
         invoicesFound: invoices.length,
         sampleInvoice: invoices[0] ? {
           id: invoices[0].Id,
@@ -79,13 +78,13 @@ router.get('/test-quickbooks', async (req, res) => {
 
 // Simple test to check if we can access any QuickBooks data
 router.get('/test-company', async (req, res) => {
-  if (!tokenStore.accessToken) {
+  if (!req.query.accessToken) {
     return res.status(401).json({ error: 'Not connected to QuickBooks' });
   }
 
   try {
     // Try to get company info (this should work even without invoice permissions)
-    const url = `https://sandbox-quickbooks.api.intuit.com/v3/company/${tokenStore.realmId}/companyinfo/${tokenStore.realmId}`;
+    const url = `https://sandbox-quickbooks.api.intuit.com/v3/company/${req.query.realmId}/companyinfo/${req.query.realmId}`;
     
     const config = {
       method: 'get',
@@ -117,9 +116,9 @@ router.get('/test-company', async (req, res) => {
       error: error.message,
       details: error.response?.data || 'No additional details',
       debug: {
-        realmId: tokenStore.realmId,
-        hasAccessToken: !!tokenStore.accessToken,
-        tokenValid: tokenStore.isTokenValid()
+        realmId: req.query.realmId,
+        hasAccessToken: !!req.query.accessToken,
+        tokenValid: req.query.accessToken && req.query.expiresAt > Date.now()
       }
     });
   }

@@ -1,15 +1,12 @@
 import { z } from 'zod';
 import { tool } from 'ai';
 import QuickBooks from 'node-quickbooks';
-import vercelTokenStore from '../quickbooks/vercelTokenStore.js';
 import axios from 'axios';
 
-async function getQboClientOrError() {
-  const tokens = await vercelTokenStore.getTokens();
+function getQboClientOrError(tokens) {
   if (!tokens.accessToken || !tokens.realmId) {
     throw new Error('No valid tokens available. Please complete OAuth flow first.');
   }
-
   return new QuickBooks(
     process.env.QB_CLIENT_ID,
     process.env.QB_CLIENT_SECRET,
@@ -30,11 +27,14 @@ export const invoiceTools = {
     parameters: z.object({
       invoiceId: z.string().describe('The ID of the invoice to retrieve'),
     }),
-    execute: async ({ invoiceId }) => {
-      const qbo = await getQboClientOrError();
-      return new Promise((resolve, reject) => {
-        qbo.getInvoice(invoiceId, (err, invoice) => {
-          if (err) return reject(new Error('Failed to fetch invoice: ' + err.message));
+    execute: async (params, toolContext) => {
+      const qbo = getQboClientOrError(toolContext);
+      return new Promise((resolve) => {
+        qbo.getInvoice(params.invoiceId, (err, invoice) => {
+          if (err) return resolve({ error: true, message: err.message || String(err) });
+          if (!invoice || !invoice.Id) {
+            return resolve({ error: true, message: 'Invoice does not exist' });
+          }
           resolve(invoice);
         });
       });
@@ -59,107 +59,120 @@ export const invoiceTools = {
       balanceFrom: z.number().optional().describe('Filter by minimum balance amount'),
       balanceTo: z.number().optional().describe('Filter by maximum balance amount'),
     }),
-    execute: async ({ 
-      maxResults = 10, 
-      startPosition = 1,
-      customerId,
-      customerName,
-      status,
-      dateFrom,
-      dateTo,
-      dueDateFrom,
-      dueDateTo,
-      totalFrom,
-      totalTo,
-      docNumber,
-      balanceFrom,
-      balanceTo
-    }) => {
-      const tokens = await vercelTokenStore.getTokens();
+    execute: async (params, toolContext) => {
+      const qbo = getQboClientOrError(toolContext);
       const baseUrl = 'https://sandbox-quickbooks.api.intuit.com';
       let queryString = 'SELECT * FROM Invoice';
       const conditions = [];
-      if (customerId) conditions.push(`CustomerRef = '${customerId}'`);
-      // QuickBooks Online SQL does NOT support subqueries. To filter by customer name, first look up the customer ID by name, then use customerId.
-      // if (customerName) conditions.push(`CustomerRef IN (SELECT Id FROM Customer WHERE DisplayName LIKE '%${customerName.replace(/'/g, "''")}%')`);
-      if (status && status !== 'All') conditions.push(`PrivateNote = '${status}'`);
-      if (dateFrom) conditions.push(`TxnDate >= '${dateFrom}'`);
-      if (dateTo) conditions.push(`TxnDate <= '${dateTo}'`);
-      if (dueDateFrom) conditions.push(`DueDate >= '${dueDateFrom}'`);
-      if (dueDateTo) conditions.push(`DueDate <= '${dueDateTo}'`);
-      if (totalFrom !== undefined) conditions.push(`TotalAmt >= '${totalFrom}'`);
-      if (totalTo !== undefined) conditions.push(`TotalAmt <= '${totalTo}'`);
-      if (docNumber) conditions.push(`DocNumber LIKE '%${docNumber.replace(/'/g, "''")}%'`);
-      if (balanceFrom !== undefined) conditions.push(`Balance >= '${balanceFrom}'`);
-      if (balanceTo !== undefined) conditions.push(`Balance <= '${balanceTo}'`);
+      if (params.customerId) conditions.push(`CustomerRef = '${params.customerId}'`);
+      if (params.status && params.status !== 'All') conditions.push(`PrivateNote = '${params.status}'`);
+      if (params.dateFrom) conditions.push(`TxnDate >= '${params.dateFrom}'`);
+      if (params.dateTo) conditions.push(`TxnDate <= '${params.dateTo}'`);
+      if (params.dueDateFrom) conditions.push(`DueDate >= '${params.dueDateFrom}'`);
+      if (params.dueDateTo) conditions.push(`DueDate <= '${params.dueDateTo}'`);
+      if (params.totalFrom !== undefined) conditions.push(`TotalAmt >= '${params.totalFrom}'`);
+      if (params.totalTo !== undefined) conditions.push(`TotalAmt <= '${params.totalTo}'`);
+      if (params.docNumber) conditions.push(`DocNumber LIKE '%${params.docNumber.replace(/'/g, "''")}%'`);
+      if (params.balanceFrom !== undefined) conditions.push(`Balance >= '${params.balanceFrom}'`);
+      if (params.balanceTo !== undefined) conditions.push(`Balance <= '${params.balanceTo}'`);
       if (conditions.length > 0) {
         queryString += ' WHERE ' + conditions.join(' AND ');
       }
       queryString += ' ORDER BY TxnDate DESC';
-      if (maxResults) {
-        queryString += ` MAXRESULTS ${Math.min(maxResults, 1000)}`;
+      if (params.maxResults) {
+        queryString += ` MAXRESULTS ${Math.min(params.maxResults, 1000)}`;
       }
-      
-        console.log('🔍 Query executed:', queryString)
       try {
-        const response = await axios.get(`${baseUrl}/v3/company/${tokens.realmId}/query`, {
+        const response = await axios.get(`${baseUrl}/v3/company/${toolContext.realmId}/query`, {
           params: {
             query: queryString,
-            startposition: startPosition
+            startposition: params.startPosition
           },
           headers: {
-            Authorization: `Bearer ${tokens.accessToken}`,
+            Authorization: `Bearer ${toolContext.accessToken}`,
             Accept: 'application/json'
           }
         });
-
         const data = response.data;
-        console.log('📊 Response:', data);
-        console.log('Max Results:', Math.min(maxResults, 1000));
         const invoiceList = data.QueryResponse?.Invoice || [];
         const totalCount = data.QueryResponse?.totalCount || 0;
         return {
-          invoices: invoiceList,  
+          invoices: invoiceList,
           totalCount,
-          startPosition,
-          maxResults: Math.min(maxResults, 1000),
+          startPosition: params.startPosition,
+          maxResults: Math.min(params.maxResults, 1000),
           query: queryString,
           filters: {
-            customerId,
-            customerName,
-            status,
-            dateFrom,
-            dateTo,
-            dueDateFrom,
-            dueDateTo,
-            totalFrom,
-            totalTo,
-            docNumber,
-            balanceFrom,
-            balanceTo
+            customerId: params.customerId,
+            customerName: params.customerName,
+            status: params.status,
+            dateFrom: params.dateFrom,
+            dateTo: params.dateTo,
+            dueDateFrom: params.dueDateFrom,
+            dueDateTo: params.dueDateTo,
+            totalFrom: params.totalFrom,
+            totalTo: params.totalTo,
+            docNumber: params.docNumber,
+            balanceFrom: params.balanceFrom,
+            balanceTo: params.balanceTo
           }
         };
       } catch (err) {
-        if (err.response && err.response.data) {
-          console.error('❌ QuickBooks API Error:', JSON.stringify(err.response.data, null, 2));
-        } else {
-          console.error('❌ QuickBooks API Error:', err.message);
-        }
-        throw new Error('Failed to fetch invoices: ' + (err.response && err.response.data ? JSON.stringify(err.response.data) : err.message));
+        return { error: true, message: 'Failed to fetch invoices: ' + (err.response && err.response.data ? JSON.stringify(err.response.data) : err.message) };
       }
     },
   }),
 
   createInvoice: tool({
-    description: 'Create a new invoice',
+    description: 'Create a new QuickBooks invoice. REQUIRED: CustomerRef.value (Customer ID) and at least one Line item. Line items must include DetailType, Amount, and ItemRef.',
     parameters: z.object({
-      invoice: z.object({}).passthrough(),
+      invoice: z.object({
+        CustomerRef: z.object({
+          value: z.string().describe('Customer ID (required)'),
+          name: z.string().optional().describe('Customer Display Name')
+        }).describe('Customer reference (required)'),
+        Line: z.array(z.object({
+          DetailType: z.string().describe('Line item type (e.g., "SalesItemLineDetail")'),
+          Amount: z.number().describe('Line item amount (required)'),
+          SalesItemLineDetail: z.object({
+            ItemRef: z.object({
+              value: z.string().describe('Item ID (required)'),
+              name: z.string().optional().describe('Item Name')
+            })
+          }).optional()
+        })).min(1).describe('At least one line item is required'),
+        DocNumber: z.string().optional().describe('Invoice document number'),
+        TxnDate: z.string().optional().describe('Transaction date (YYYY-MM-DD)'),
+        DueDate: z.string().optional().describe('Due date (YYYY-MM-DD)'),
+        PrivateNote: z.string().optional().describe('Private note for the invoice'),
+        Memo: z.string().optional().describe('Public memo for the invoice')
+      }).describe('Invoice object with required CustomerRef and Line fields')
     }),
-    execute: async ({ invoice }) => {
-      const qbo = getQboClientOrError();
-      return new Promise((resolve, reject) => {
-        qbo.createInvoice(invoice, (err, createdInvoice) => {
-          if (err) return reject(new Error('Failed to create invoice: ' + err.message));
+    execute: async (params, toolContext) => {
+      const qbo = getQboClientOrError(toolContext);
+      // Validate required fields
+      if (!params.invoice.CustomerRef?.value) {
+        return { error: true, message: 'CustomerRef.value is required' };
+      }
+      if (!params.invoice.Line || params.invoice.Line.length === 0) {
+        return { error: true, message: 'At least one Line item is required' };
+      }
+      // Validate each line item
+      for (let i = 0; i < params.invoice.Line.length; i++) {
+        const line = params.invoice.Line[i];
+        if (!line.DetailType) {
+          return { error: true, message: `Line ${i + 1}: DetailType is required` };
+        }
+        if (typeof line.Amount !== 'number') {
+          return { error: true, message: `Line ${i + 1}: Amount must be a number` };
+        }
+        if (line.DetailType === 'SalesItemLineDetail' && (!line.SalesItemLineDetail?.ItemRef?.value)) {
+          return { error: true, message: `Line ${i + 1}: ItemRef.value is required for SalesItemLineDetail` };
+        }
+      }
+      return new Promise((resolve) => {
+        qbo.createInvoice(params.invoice, (err, createdInvoice) => {
+          if (err) return resolve({ error: true, message: 'Failed to create invoice: ' + err.message });
           resolve(createdInvoice);
         });
       });
@@ -167,17 +180,26 @@ export const invoiceTools = {
   }),
 
   updateInvoice: tool({
-    description: 'Update an existing invoice by ID',
+    description: 'Update an existing QuickBooks invoice. REQUIRED: Id and SyncToken (must be current). Always fetch the latest invoice first using getInvoice, extract Id and SyncToken, and include them in the update. Only modify the fields that need changes, but always include Id, SyncToken, and any required fields like CustomerRef or Line. If updating an Invoice, preserve existing Line items unless instructed otherwise. If update fails due to a stale SyncToken, refetch the latest invoice and retry with the new token.',
     parameters: z.object({
-      invoiceId: z.string(),
-      invoice: z.object({}).passthrough(),
+      invoiceId: z.string().describe('The Id of the invoice to update (required)'),
+      invoice: z.object({
+        Id: z.string().describe('Invoice Id (required, must match invoiceId)'),
+        SyncToken: z.string().describe('Current SyncToken for the invoice (required, must be latest)'),
+      }).passthrough().describe('Invoice object with updated fields, must include Id and SyncToken'),
     }),
-    execute: async ({ invoiceId, invoice }) => {
-      const qbo = getQboClientOrError();
-      invoice.Id = invoiceId;
-      return new Promise((resolve, reject) => {
-        qbo.updateInvoice(invoice, (err, updatedInvoice) => {
-          if (err) return reject(new Error('Failed to update invoice: ' + err.message));
+    execute: async (params, toolContext) => {
+      const qbo = getQboClientOrError(toolContext);
+      params.invoice.Id = params.invoiceId;
+      if (!params.invoice.SyncToken) {
+        return { error: true, message: 'SyncToken is required for update' };
+      }
+      return new Promise((resolve) => {
+        qbo.updateInvoice(params.invoice, (err, updatedInvoice) => {
+          if (err && err.message && err.message.includes('SyncToken')) {
+            return resolve({ error: true, message: 'SyncToken is stale. Please refetch the invoice and retry with the latest SyncToken.' });
+          }
+          if (err) return resolve({ error: true, message: 'Failed to update invoice: ' + err.message });
           resolve(updatedInvoice);
         });
       });
@@ -189,28 +211,28 @@ export const invoiceTools = {
     parameters: z.object({
       invoiceId: z.string(),
     }),
-    execute: async ({ invoiceId }) => {
-      const qbo = getQboClientOrError();
-      return new Promise((resolve, reject) => {
-        qbo.deleteInvoice(invoiceId, (err, result) => {
-          if (err) return reject(new Error('Failed to delete invoice: ' + err.message));
+    execute: async (params, toolContext) => {
+      const qbo = getQboClientOrError(toolContext);
+      return new Promise((resolve) => {
+        qbo.deleteInvoice(params.invoiceId, (err, result) => {
+          if (err) return resolve({ error: true, message: 'Failed to delete invoice: ' + err.message });
           resolve({ message: 'Invoice deleted successfully', result });
         });
       });
     },
   }),
 
-  emailInvoicePdf: tool({
-    description: 'Send an invoice PDF to an email address',
+  sendInvoicePdf: tool({
+    description: 'Send an invoice PDF to a customer by email',
     parameters: z.object({
-      invoiceId: z.string(),
-      email: z.string().email(),
+      invoiceId: z.string().describe('The ID of the invoice to send'),
+      email: z.string().describe('The email address to send the invoice to'),
     }),
-    execute: async ({ invoiceId, email }) => {
-      const qbo = getQboClientOrError();
-      return new Promise((resolve, reject) => {
-        qbo.sendInvoicePdf(invoiceId, email, (err, result) => {
-          if (err) return reject(new Error('Failed to send invoice: ' + err.message));
+    execute: async (params, toolContext) => {
+      const qbo = getQboClientOrError(toolContext);
+      return new Promise((resolve) => {
+        qbo.sendInvoicePdf(params.invoiceId, params.email, (err, result) => {
+          if (err) return resolve({ error: true, message: 'Failed to send invoice: ' + err.message });
           resolve({ message: 'Invoice sent successfully', result });
         });
       });

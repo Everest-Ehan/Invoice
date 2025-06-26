@@ -1,0 +1,124 @@
+/* InvoiceCard.css - Modern, clean, beautiful UI for InvoiceCard */
+
+.invoice-card {
+  padding: 1.5rem;
+  cursor: pointer;
+  background: #fff;
+  transition: background 0.2s;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.invoice-card:hover {
+  background: #f6faff;
+}
+
+.invoice-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.invoice-card-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.invoice-badge {
+  font-size: 1.1rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+  display: inline-block;
+}
+.invoice-badge.sent {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+.invoice-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.invoice-badge.overdue {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.invoice-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  font-size: 1.1rem;
+  color: #64748b;
+}
+@media (min-width: 1200px) {
+  .invoice-card-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.invoice-card-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.invoice-card-info .icon {
+  color: #64748b;
+}
+.invoice-card-info .due {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.invoice-card-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.invoice-card-amount .total {
+  font-weight: 700;
+  color: #1e293b;
+}
+.invoice-card-amount .due {
+  color: #ea580c;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.invoice-card-arrow {
+  margin-left: 1rem;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  background: #e0e7ff;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.invoice-card:hover .invoice-card-arrow {
+  background: #c7d2fe;
+}
+.invoice-card-arrow span {
+  color: #2563eb;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.invoice-card .truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
