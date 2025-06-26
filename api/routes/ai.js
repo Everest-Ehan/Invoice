@@ -8,7 +8,6 @@ const router = express.Router();
 
 const model1 = openai('gpt-4', {
   apiKey: process.env.OPENAI_API_KEY,
-  temperature: 0,
 });
 
 // System prompt to guide the AI on using QuickBooks invoice tools

@@ -42,9 +42,9 @@ vercel --prod
 ```
 
 ### 2. **Set Up Vercel KV Database**
-1. Go to Vercel dashboard → Storage
-2. Create new KV database
-3. Connection details auto-configured
+1. Go to Vercel dashboard → **Marketplace**
+2. Search for and add "Vercel KV"
+3. Connection details auto-configured via marketplace integration
 
 ### 3. **Configure Environment Variables**
 Required in Vercel dashboard:

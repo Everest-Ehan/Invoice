@@ -25,9 +25,11 @@ This guide will help you deploy your Vite + Express application with custom toke
 ## Step 2: Set Up Vercel KV Database
 
 1. Go to your Vercel dashboard
-2. Navigate to Storage tab
-3. Create a new KV database
-4. Note down the connection details (these will be auto-configured)
+2. Navigate to the **Marketplace** tab
+3. Search for "KV" or "Vercel KV"
+4. Click "Add" to install Vercel KV from the marketplace
+5. Follow the setup wizard to create a new KV database
+6. The connection details (KV_REST_API_URL and KV_REST_API_TOKEN) will be automatically configured in your project environment variables
 
 ## Step 3: Deploy to Vercel
 
@@ -67,11 +69,13 @@ FRONTEND_URL=https://your-app.vercel.app
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-### Auto-configured by Vercel KV:
+### Auto-configured by Vercel KV (from Marketplace):
 ```
-KV_REST_API_URL=(automatically set when you connect KV database)
-KV_REST_API_TOKEN=(automatically set when you connect KV database)
+KV_REST_API_URL=(automatically set when you add KV from marketplace)
+KV_REST_API_TOKEN=(automatically set when you add KV from marketplace)
 ```
+
+**Note**: After adding Vercel KV from the Marketplace, these environment variables will be automatically injected into your project. You don't need to set them manually.
 
 ## Step 5: Update QuickBooks App Settings
 
@@ -120,9 +124,14 @@ origin: process.env.NODE_ENV === 'production'
 ### Common Issues:
 
 1. **"No valid tokens" error**
-   - Check if KV database is connected
-   - Verify environment variables are set
+   - Check if KV database is added from Vercel Marketplace
+   - Verify KV environment variables are auto-configured
    - Re-authenticate with QuickBooks
+
+2. **KV connection issues**
+   - Ensure Vercel KV is properly installed from Marketplace
+   - Check that KV_REST_API_URL and KV_REST_API_TOKEN are present in your environment variables
+   - Try redeploying after adding KV from marketplace
 
 2. **CORS errors**
    - Update CORS settings in `api/index.js`
