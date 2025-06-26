@@ -1,8 +1,8 @@
 import axios from 'axios';
-import persistentTokenStore from './persistentTokenStore.js';
+import vercelTokenStore from './vercelTokenStore.js';
 
 export async function refreshQuickBooksToken() {
-  const tokens = persistentTokenStore.getTokens();
+  const tokens = await vercelTokenStore.getTokens();
   if (!tokens.refreshToken) throw new Error('No refresh token available');
   
   try {
@@ -22,7 +22,7 @@ export async function refreshQuickBooksToken() {
 
     // Save the new tokens with expiry time
     const expiresIn = tokenRes.data.expires_in || 3600;
-    persistentTokenStore.saveTokens(
+    await vercelTokenStore.saveTokens(
       tokenRes.data.access_token,
       tokenRes.data.refresh_token,
       tokens.realmId, // Keep the same realm ID

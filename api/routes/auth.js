@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import persistentTokenStore from '../quickbooks/persistentTokenStore.js';
+import vercelTokenStore from '../quickbooks/vercelTokenStore.js';
 import { refreshQuickBooksToken } from '../quickbooks/refreshToken.js';
 
 const router = express.Router();
@@ -37,7 +37,7 @@ router.get('/quickbooks/callback', async (req, res) => {
     const expiresIn = tokenRes.data.expires_in || 3600;
     const expiresAt = Date.now() + (expiresIn * 1000);
     
-    persistentTokenStore.saveTokens(
+    await vercelTokenStore.saveTokens(
       tokenRes.data.access_token,
       tokenRes.data.refresh_token,
       realmId,
@@ -52,21 +52,25 @@ router.get('/quickbooks/callback', async (req, res) => {
       expiresAt: expiresAt
     }));
 
-    res.redirect(`http://localhost:3000?tokens=${tokens}`);
+    const frontendUrl = process.env.NODE_ENV === 'production' 
+      ? process.env.FRONTEND_URL || 'https://your-app.vercel.app'
+      : 'http://localhost:3000';
+    
+    res.redirect(`${frontendUrl}?tokens=${tokens}`);
   } catch (err) {
     res.status(500).send('OAuth failed: ' + (err.response?.data?.error_description || err.message));
   }
 });
 
 // Add logout endpoint to clear tokens and re-authenticate
-router.get('/logout', (req, res) => {
-  persistentTokenStore.clearTokens();
+router.get('/logout', async (req, res) => {
+  await vercelTokenStore.clearTokens();
   res.json({ message: 'Logged out successfully. You can now re-authenticate.' });
 });
 
 // Token validation endpoint
-router.get('/validate-token', (req, res) => {
-  const tokens = persistentTokenStore.getTokens();
+router.get('/validate-token', async (req, res) => {
+  const tokens = await vercelTokenStore.getTokens();
   
   if (!tokens.accessToken) {
     return res.status(401).json({ 
@@ -76,7 +80,7 @@ router.get('/validate-token', (req, res) => {
     });
   }
 
-  if (!persistentTokenStore.isTokenValid()) {
+  if (!(await vercelTokenStore.isTokenValid())) {
     return res.status(401).json({ 
       valid: false, 
       message: 'Access token expired',
@@ -97,7 +101,7 @@ router.get('/validate-token', (req, res) => {
 router.post('/refresh-token', async (req, res) => {
   try {
     const newAccessToken = await refreshQuickBooksToken();
-    const tokens = persistentTokenStore.getTokens();
+    const tokens = await vercelTokenStore.getTokens();
     
     res.json({ 
       success: true, 
@@ -116,11 +120,11 @@ router.post('/refresh-token', async (req, res) => {
 });
 
 // Sync tokens from frontend
-router.post('/sync-tokens', (req, res) => {
+router.post('/sync-tokens', async (req, res) => {
   const { accessToken, refreshToken, realmId, expiresAt } = req.body;
   
   if (accessToken && realmId) {
-    persistentTokenStore.setTokens({ accessToken, refreshToken, realmId, expiresAt });
+    await vercelTokenStore.setTokens({ accessToken, refreshToken, realmId, expiresAt });
     res.json({ success: true, message: 'Tokens synced successfully' });
   } else {
     res.status(400).json({ success: false, message: 'Missing required tokens' });
@@ -128,9 +132,9 @@ router.post('/sync-tokens', (req, res) => {
 });
 
 // Debug endpoint to check token status
-router.get('/debug-tokens', (req, res) => {
-  const tokens = persistentTokenStore.getTokens();
-  const isValid = persistentTokenStore.isTokenValid();
+router.get('/debug-tokens', async (req, res) => {
+  const tokens = await vercelTokenStore.getTokens();
+  const isValid = await vercelTokenStore.isTokenValid();
   
   res.json({
     tokens_available: !!tokens.accessToken,

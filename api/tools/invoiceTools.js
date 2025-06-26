@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { tool } from 'ai';
 import QuickBooks from 'node-quickbooks';
-import persistentTokenStore from '../quickbooks/persistentTokenStore.js';
+import vercelTokenStore from '../quickbooks/vercelTokenStore.js';
 import axios from 'axios';
 
-function getQboClientOrError() {
-  const tokens = persistentTokenStore.getTokens();
+async function getQboClientOrError() {
+  const tokens = await vercelTokenStore.getTokens();
   if (!tokens.accessToken || !tokens.realmId) {
     throw new Error('No valid tokens available. Please complete OAuth flow first.');
   }
@@ -31,7 +31,7 @@ export const invoiceTools = {
       invoiceId: z.string().describe('The ID of the invoice to retrieve'),
     }),
     execute: async ({ invoiceId }) => {
-      const qbo = getQboClientOrError();
+      const qbo = await getQboClientOrError();
       return new Promise((resolve, reject) => {
         qbo.getInvoice(invoiceId, (err, invoice) => {
           if (err) return reject(new Error('Failed to fetch invoice: ' + err.message));
@@ -75,7 +75,7 @@ export const invoiceTools = {
       balanceFrom,
       balanceTo
     }) => {
-      const tokens = persistentTokenStore.getTokens();
+      const tokens = await vercelTokenStore.getTokens();
       const baseUrl = 'https://sandbox-quickbooks.api.intuit.com';
       let queryString = 'SELECT * FROM Invoice';
       const conditions = [];

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { apiUrl } from "./utils/api";
 import InvoicePanel from "./components/InvoicePanel";
 import ChatPanel from "./components/ChatPanel";
 import ConnectPanel from "./components/ConnectPanel";
@@ -51,7 +52,7 @@ function App() {
 
   const syncTokensWithBackend = async (tokens) => {
     try {
-      await fetch("http://localhost:5000/api/auth/sync-tokens", {
+      await fetch(`${apiUrl}/api/auth/sync-tokens`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tokens),
@@ -78,7 +79,7 @@ function App() {
         await syncTokensWithBackend(tokens);
       }
 
-      const response = await fetch("http://localhost:5000/api/auth/validate-token");
+      const response = await fetch(`${apiUrl}/api/auth/validate-token`);
       const data = await response.json();
       
       if (data.valid) {
@@ -95,7 +96,7 @@ function App() {
           // Try to refresh the token
           console.log("Token expired, attempting refresh...");
           try {
-            const refreshResponse = await fetch("http://localhost:5000/api/auth/refresh-token", {
+            const refreshResponse = await fetch(`${apiUrl}/api/auth/refresh-token`, {
               method: "POST",
               headers: { "Content-Type": "application/json" }
             });
@@ -143,7 +144,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:5000/api/auth/logout");
+      await fetch(`${apiUrl}/api/auth/logout`);
       setConnected(false);
       setChat([]);
       setInvoices([]);
@@ -178,7 +179,7 @@ function App() {
         throw new Error("No valid tokens found. Please reconnect to QuickBooks.");
       }
 
-      const response = await fetch("http://localhost:5000/api/ai/chat", {
+      const response = await fetch(`${apiUrl}/api/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
