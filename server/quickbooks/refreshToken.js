@@ -1,14 +1,16 @@
 import axios from 'axios';
-import tokenStore from './tokenStore.js';
+import persistentTokenStore from './persistentTokenStore.js';
 
 export async function refreshQuickBooksToken() {
-  if (!tokenStore.refreshToken) throw new Error('No refresh token available');
+  const tokens = persistentTokenStore.getTokens();
+  if (!tokens.refreshToken) throw new Error('No refresh token available');
+  
   try {
     const tokenRes = await axios.post(
       'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer',
       new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: tokenStore.refreshToken,
+        refresh_token: tokens.refreshToken,
       }),
       {
         headers: {
@@ -17,9 +19,18 @@ export async function refreshQuickBooksToken() {
         },
       }
     );
-    tokenStore.accessToken = tokenRes.data.access_token;
-    tokenStore.refreshToken = tokenRes.data.refresh_token;
-    return tokenStore.accessToken;
+
+    // Save the new tokens with expiry time
+    const expiresIn = tokenRes.data.expires_in || 3600;
+    persistentTokenStore.saveTokens(
+      tokenRes.data.access_token,
+      tokenRes.data.refresh_token,
+      tokens.realmId, // Keep the same realm ID
+      expiresIn
+    );
+
+    console.log('Token refreshed successfully');
+    return tokenRes.data.access_token;
   } catch (err) {
     console.error('Failed to refresh QuickBooks token:', err.response?.data || err.message);
     throw new Error('Failed to refresh QuickBooks token');
