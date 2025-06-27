@@ -47,6 +47,7 @@ router.get('/quickbooks/callback', async (req, res) => {
       ? process.env.FRONTEND_URL || 'https://invoice-um37.onrender.com/'
       : 'http://localhost:3000';
     
+    console.log('Frontend URL:', frontendUrl);
     res.redirect(`${frontendUrl}?tokens=${tokens}`);
   } catch (err) {
     res.status(500).send('OAuth failed: ' + (err.response?.data?.error_description || err.message));
