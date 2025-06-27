@@ -19,7 +19,7 @@ const app = express();
 // CORS configuration
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-      ? ['http://localhost:5000', 'https://your-app.vercel.app'] // Add your production domains
+      ? ['http://localhost:5000', 'https://invoice-um37.onrender.com/'] // Add your production domains
       : ['http://localhost:3000', 'http://localhost:5000'],
     methods: ['GET', 'POST'],
     credentials: true,
