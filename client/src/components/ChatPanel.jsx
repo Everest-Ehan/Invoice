@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";   
 import { Send, Bot, User } from "lucide-react";
+import "./ChatPanel.css";
 
 // Function to format AI response text
 const formatAIResponse = (text) => {
@@ -19,56 +20,69 @@ const formatAIResponse = (text) => {
 };
 
 export default function ChatPanel({ chat, input, setInput, loading, onSend }) {
+  const chatAreaRef = useRef(null);
+
+  // Scroll to bottom when chat or loading changes
+  useEffect(() => {
+    if (chatAreaRef.current) {
+      chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+    }
+  }, [chat, loading]);
+
   return (
-    <div className="panel chat-panel">
-      <div className="panel-header">
-        <h2>AI Assistant</h2>
+    <div className="panel chat-panel-ui">
+      <div className="chat-header-ui">
+        <span className="chat-header-bot"><Bot size={20} /></span>
+        <span className="chat-header-title">AI Assistant</span>
       </div>
-      
-      <div className="chat-area">
+      <div className="chat-area-ui" ref={chatAreaRef}>
         {chat.length === 0 ? (
-          <div className="empty">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Bot size={20} className="text-blue-600" />
-              </div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">Welcome!</h3>
-              <p className="text-sm text-gray-600 mb-3">Ask me anything about your invoices.</p>
-              <div className="text-xs text-gray-500 space-y-1">
-                <p>💡 Try: "Show me recent invoices"</p>
-                <p>"What's the total outstanding amount?"</p>
-              </div>
+          <div className="chat-empty-ui">
+            <div className="chat-empty-icon-ui">
+              <Bot size={28} />
+            </div>
+            <div className="chat-empty-title-ui">Welcome!</div>
+            <div className="chat-empty-desc-ui">Ask me anything about your invoices.</div>
+            <div className="chat-empty-suggestions-ui">
+              <span>💡 Try:</span> "Show me recent invoices"<br />"What's the total outstanding amount?"
             </div>
           </div>
         ) : (
-          chat.map((msg, idx) => (
-            <div key={idx} className={`chat-msg ${msg.role}`}>
-              {msg.role === 'assistant' ? (
-                <div dangerouslySetInnerHTML={{ __html: formatAIResponse(msg.content) }} />
-              ) : (
-                msg.content
-              )}
-            </div>
-          ))
+          <div className="chat-msg-list-ui">
+            {chat.map((msg, idx) => (
+              <div key={idx} className={`chat-msg-ui${msg.role === 'user' ? ' user' : ''}`}>
+                <span className="chat-msg-avatar-ui">
+                  {msg.role === 'assistant' ? <Bot size={18} /> : <User size={18} />}
+                </span>
+                <span className="chat-msg-bubble-ui">
+                  {msg.role === 'assistant' ? (
+                    <span dangerouslySetInnerHTML={{ __html: formatAIResponse(msg.content) }} />
+                  ) : (
+                    msg.content
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
         {loading && (
-          <div className="chat-msg assistant loading">
-            <div className="flex items-center gap-2">
-              <div className="typing-indicator">
+          <div className="chat-msg-ui assistant loading">
+            <span className="chat-msg-avatar-ui"><Bot size={18} /></span>
+            <span className="chat-msg-bubble-ui">
+              <span className="typing-indicator-ui">
                 <span></span>
                 <span></span>
                 <span></span>
-              </div>
-              <span className="text-sm">Thinking...</span>
-            </div>
+              </span>
+              <span className="chat-msg-loading-text-ui">Thinking...</span>
+            </span>
           </div>
         )}
       </div>
-      
-      <div className="chat-input-container">
-        <form className="chat-input-row" onSubmit={onSend}>
+      <div className="chat-input-container-ui">
+        <form className="chat-input-row-ui" onSubmit={onSend}>
           <textarea
-            className="chat-input"
+            className="chat-input-ui"
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder="Ask about your invoices..."
@@ -82,7 +96,7 @@ export default function ChatPanel({ chat, input, setInput, loading, onSend }) {
             }}
           />
           <button 
-            className="send-btn" 
+            className="send-btn-ui" 
             type="submit" 
             disabled={loading || !input.trim()}
             title="Send message"

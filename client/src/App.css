@@ -462,7 +462,7 @@ body {
 
 @media (max-width: 1024px) {
   .dual-panel-container {
-    flex-direction: column;
+    /* flex-direction: column; */
     height: auto;
     min-height: 100vh;
     padding: 1rem;
@@ -479,7 +479,7 @@ body {
   }
   
   .panel:last-child {
-    height: 50vh;
+    height: 100vh;
   }
   
   .chat-msg {
@@ -489,10 +489,13 @@ body {
 
 @media (max-width: 768px) {
   .dual-panel-container {
+    flex-direction: column;
     padding: 0.5rem;
     gap: 0.5rem;
   }
-  
+  .invoice-panel-bg {
+    width:100%;
+  }
   .panel-header {
     padding: 1rem 1.25rem;
   }
