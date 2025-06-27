@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  invoice-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/status', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - invoice-network
+
+  # Development setup (uncomment for dev)
+  # invoice-app-dev:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   ports:
+  #     - "3000:3000"  # Client
+  #     - "5000:5000"  # API
+  #   environment:
+  #     - NODE_ENV=development
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./client:/app/client
+  #     - ./api:/app/api
+  #     - /app/client/node_modules
+  #     - /app/api/node_modules
+  #   command: npm run dev
+  #   networks:
+  #     - invoice-network
+
+networks:
+  invoice-network:
+    driver: bridge
+
+volumes:
+  node_modules: 
