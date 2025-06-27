@@ -56,6 +56,9 @@ COPY package*.json ./
 # Copy environment file template
 # COPY .env.example .env
 
+# Copy environment file template to API folder
+COPY .env.example ./api/.env
+
 # Switch to non-root user
 USER nextjs
 
@@ -67,4 +70,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:5000/api/status', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start the application
-CMD ["node", "api/index.js"] 
+CMD ["node", "api/index.js"]
