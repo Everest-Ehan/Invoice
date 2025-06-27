@@ -86,12 +86,13 @@ export default function ChatPanel({ chat, input, setInput, loading, onSend }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder="Ask about your invoices..."
-            disabled={loading}
             rows={1}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                onSend(e);
+                if (!loading) {
+                  onSend(e);
+                }
               }
             }}
           />
