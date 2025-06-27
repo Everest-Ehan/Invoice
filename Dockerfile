@@ -57,7 +57,7 @@ COPY package*.json ./
 # COPY .env.example .env
 
 # Copy environment file template to API folder
-COPY .env.example ./api/.env
+COPY .env ./api/.env
 
 # Switch to non-root user
 USER nextjs
