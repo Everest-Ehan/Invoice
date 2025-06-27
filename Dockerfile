@@ -54,7 +54,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 
 # Copy environment file template
-COPY .env.example .env
+# COPY .env.example .env
 
 # Switch to non-root user
 USER nextjs
