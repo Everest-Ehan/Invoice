@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { InvoiceCard } from "./InvoiceCard";
 import InvoiceDetailModal from "./InvoiceDetailModal";
 import { LogOut, FileText, DollarSign, Clock, ChevronLeft, ChevronRight } from "lucide-react";
@@ -8,6 +8,11 @@ export default function InvoicePanel({ invoices, onLogout }) {
   const [selected, setSelected] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const invoicesPerPage = 5;
+
+  // Reset to page 1 when invoices change (new AI results)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [invoices]);
 
   // Safe calculations with null checks
   const totalAmount = invoices.reduce((sum, inv) => sum + (typeof inv?.TotalAmt === 'number' ? inv.TotalAmt : 0), 0);
