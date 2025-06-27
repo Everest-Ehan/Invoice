@@ -44,7 +44,7 @@ router.get('/quickbooks/callback', async (req, res) => {
     }));
 
     const frontendUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.FRONTEND_URL || 'https://your-app.vercel.app'
+      ? process.env.FRONTEND_URL || 'https://invoice-um37.onrender.com/'
       : 'http://localhost:3000';
     
     res.redirect(`${frontendUrl}?tokens=${tokens}`);
